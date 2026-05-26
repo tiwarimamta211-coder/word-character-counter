@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WordCraft Counter</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0b0c10;
+    --surface:   #13141a;
+    --card:      #1a1b24;
+    --border:    #2a2b38;
+    --c1: #ff6b6b;   /* coral */
+    --c2: #ffd93d;   /* yellow */
+    --c3: #6bcb77;   /* green */
+    --c4: #4d96ff;   /* blue */
+    --c5: #c77dff;   /* purple */
+    --c6: #ff9f1c;   /* orange */
+    --text:      #e8e9f3;
+    --muted:     #6b6d85;
+    --radius:    14px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* ── BG BLOBS ── */
+  .blobs {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+  }
+  .blob {
+    position: absolute; border-radius: 50%; filter: blur(100px); opacity: .18;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  .blob-1 { width:420px; height:420px; background:var(--c5); top:-100px; left:-80px; animation-delay:0s; }
+  .blob-2 { width:320px; height:320px; background:var(--c1); top:40%; right:-60px; animation-delay:-4s; }
+  .blob-3 { width:260px; height:260px; background:var(--c4); bottom:-80px; left:30%; animation-delay:-9s; }
+  @keyframes drift { from{transform:translateY(0) scale(1)} to{transform:translateY(40px) scale(1.08)} }
+
+  /* ── HEADER ── */
+  header {
+    position: relative; z-index: 1;
+    text-align: center;
+    padding: 48px 24px 32px;
+  }
+  .brand {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--c1), var(--c2), var(--c3), var(--c4), var(--c5));
+    background-size: 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 6s linear infinite;
+  }
+  @keyframes shimmer { 0%{background-position:0% 50%} 100%{background-position:300% 50%} }
+  .tagline { color: var(--muted); font-size: .95rem; margin-top: 8px; letter-spacing: .3px; }
+
+  /* ── MAIN LAYOUT ── */
+  .container {
+    position: relative; z-index: 1;
+    max-width: 980px; margin: 0 auto;
+    padding: 0 20px 60px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    align-items: center;
+  }
+  .toolbar-label { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-right: 4px; }
+  .btn {
+    padding: 7px 14px; border-radius: var(--radius-sm);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .82rem; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: all .18s ease;
+    letter-spacing: .3px;
+  }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.15); }
+  .btn:active { transform: translateY(0); }
+  .btn-coral  { background: var(--c1); color: #1a0000; }
+  .btn-yellow { background: var(--c2); color: #1a1500; }
+  .btn-green  { background: var(--c3); color: #001a07; }
+  .btn-blue   { background: var(--c4); color: #000d1a; }
+  .btn-purple { background: var(--c5); color: #0d001a; }
+  .btn-orange { background: var(--c6); color: #1a0d00; }
+  .btn-ghost {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--c4); }
+
+  .divider { width: 1px; height: 28px; background: var(--border); margin: 0 4px; }
+
+  /* ── TEXTAREA CARD ── */
+  .editor-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color .3s;
+    position: relative;
+  }
+  .editor-card:focus-within { border-color: var(--c4); }
+  .editor-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--c1), var(--c2), var(--c3), var(--c4), var(--c5));
+    background-size: 200%;
+    animation: shimmer 4s linear infinite;
+  }
+
+  .textarea-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px 0;
+    font-size: .78rem; color: var(--muted);
+  }
+  .textarea-header span { letter-spacing: .4px; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: .72rem; color: var(--c3); font-weight: 600;
+  }
+  .live-dot {
+    width: 7px; height: 7px; background: var(--c3); border-radius: 50%;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  textarea {
+    width: 100%; min-height: 260px;
+    background: transparent; border: none; outline: none; resize: vertical;
+    color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 1rem; line-height: 1.7;
+    padding: 16px 18px 18px;
+    caret-color: var(--c4);
+    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  }
+  textarea::placeholder { color: var(--muted); }
+  textarea::-webkit-scrollbar { width: 6px; }
+  textarea::-webkit-scrollbar-track { background: transparent; }
+  textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── STATS GRID ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 16px;
+    position: relative; overflow: hidden;
+    transition: transform .2s, border-color .2s;
+    cursor: default;
+  }
+  .stat-card:hover { transform: translateY(-3px); }
+  .stat-card::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .sc-coral::after   { background: var(--c1); }
+  .sc-yellow::after  { background: var(--c2); }
+  .sc-green::after   { background: var(--c3); }
+  .sc-blue::after    { background: var(--c4); }
+  .sc-purple::after  { background: var(--c5); }
+  .sc-orange::after  { background: var(--c6); }
+
+  .sc-coral:hover   { border-color: var(--c1); }
+  .sc-yellow:hover  { border-color: var(--c2); }
+  .sc-green:hover   { border-color: var(--c3); }
+  .sc-blue:hover    { border-color: var(--c4); }
+  .sc-purple:hover  { border-color: var(--c5); }
+  .sc-orange:hover  { border-color: var(--c6); }
+
+  .stat-label {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin-bottom: 10px; font-weight: 600;
+  }
+  .stat-value {
+    font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800;
+    line-height: 1; transition: all .3s;
+  }
+  .sc-coral .stat-value   { color: var(--c1); }
+  .sc-yellow .stat-value  { color: var(--c2); }
+  .sc-green .stat-value   { color: var(--c3); }
+  .sc-blue .stat-value    { color: var(--c4); }
+  .sc-purple .stat-value  { color: var(--c5); }
+  .sc-orange .stat-value  { color: var(--c6); }
+  .stat-sub { font-size: .72rem; color: var(--muted); margin-top: 5px; }
+
+  /* ── NUMBER TICK ANIMATION ── */
+  @keyframes pop { 0%{transform:scale(1.25)} 100%{transform:scale(1)} }
+  .popped { animation: pop .22s ease-out; }
+
+  /* ── SECONDARY ROW ── */
+  .secondary-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media(max-width:640px) { .secondary-row { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+  }
+  .panel-title {
+    font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800;
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  /* ── READING TIME RADIAL ── */
+  .reading-ring-wrap { display: flex; align-items: center; gap: 18px; }
+  .ring-svg { width: 88px; height: 88px; flex-shrink: 0; }
+  .ring-bg  { fill: none; stroke: var(--border); stroke-width: 8; }
+  .ring-fg  { fill: none; stroke: var(--c4); stroke-width: 8; stroke-linecap: round;
+               stroke-dasharray: 226; stroke-dashoffset: 226;
+               transform: rotate(-90deg); transform-origin: 50% 50%;
+               transition: stroke-dashoffset 1s ease; }
+  .ring-label { text-anchor: middle; dominant-baseline: middle; font-family:'Syne',sans-serif;
+                font-size: 18px; fill: var(--text); font-weight: 800; }
+  .ring-sub   { text-anchor: middle; dominant-baseline: middle; font-family:'Space Grotesk',sans-serif;
+                font-size: 9px; fill: var(--muted); }
+
+  .reading-meta p { font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
+  .reading-meta strong { color: var(--text); }
+
+  /* ── KEYWORD DENSITY ── */
+  .kw-list { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+  .kw-list::-webkit-scrollbar { width: 5px; }
+  .kw-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .kw-item { display: flex; align-items: center; gap: 10px; }
+  .kw-word { font-family: 'JetBrains Mono', monospace; font-size: .8rem; color: var(--text); min-width: 90px; }
+  .kw-bar-wrap { flex: 1; background: var(--border); border-radius: 4px; height: 6px; }
+  .kw-bar { height: 6px; border-radius: 4px; transition: width .5s ease; }
+  .kw-count { font-size: .75rem; color: var(--muted); min-width: 30px; text-align: right; }
+  .kw-empty { color: var(--muted); font-size: .85rem; font-style: italic; }
+
+  /* ── CHAR BREAKDOWN ── */
+  .breakdown-list { display: flex; flex-direction: column; gap: 8px; }
+  .bk-item { display: flex; align-items: center; gap: 10px; }
+  .bk-label { font-size: .8rem; color: var(--muted); min-width: 120px; }
+  .bk-bar-wrap { flex: 1; background: var(--border); border-radius: 4px; height: 6px; }
+  .bk-bar { height: 6px; border-radius: 4px; transition: width .5s ease; }
+  .bk-val { font-size: .8rem; color: var(--text); min-width: 36px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+
+  /* ── FULL-WIDTH PANELS ── */
+  .full-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media(max-width:640px) { .full-row { grid-template-columns: 1fr; } }
+
+  /* ── FIND & HIGHLIGHT ── */
+  .find-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .find-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 12px;
+    color: var(--text); font-family: 'Space Grotesk', sans-serif; font-size: .88rem;
+    outline: none; transition: border-color .2s;
+  }
+  .find-input:focus { border-color: var(--c4); }
+  .find-result {
+    font-size: .82rem; color: var(--muted); margin-top: 6px;
+  }
+  .find-result span { color: var(--c2); font-weight: 600; }
+
+  /* ── SENTENCE PREVIEW ── */
+  .sentence-list { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+  .sentence-list::-webkit-scrollbar { width: 5px; }
+  .sentence-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .sentence-item {
+    font-size: .8rem; color: var(--muted); line-height: 1.5;
+    padding: 6px 10px;
+    background: var(--surface); border-radius: var(--radius-sm);
+    border-left: 3px solid transparent;
+  }
+  .sentence-item:nth-child(1) { border-color: var(--c1); }
+  .sentence-item:nth-child(2) { border-color: var(--c2); }
+  .sentence-item:nth-child(3) { border-color: var(--c3); }
+  .sentence-item:nth-child(4) { border-color: var(--c4); }
+  .sentence-item:nth-child(5) { border-color: var(--c5); }
+
+  /* ── EXPORT ROW ── */
+  .export-row {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    align-items: center;
+  }
+  .export-row .toolbar-label { margin-right: 2px; }
+
+  /* ── CHAR LIMIT SLIDER ── */
+  .limit-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .limit-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: .85rem; }
+  input[type=checkbox] { accent-color: var(--c4); width: 16px; height: 16px; cursor: pointer; }
+  input[type=range] {
+    -webkit-appearance: none; flex: 1; min-width: 120px;
+    height: 5px; background: var(--border); border-radius: 3px; outline: none;
+    accent-color: var(--c5);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    background: var(--c5); border-radius: 50%; cursor: pointer;
+    box-shadow: 0 0 8px var(--c5);
+  }
+  .limit-val { font-family: 'JetBrains Mono', monospace; font-size: .82rem; color: var(--c5); min-width: 54px; }
+  .limit-bar-wrap { background: var(--border); border-radius: 4px; height: 8px; margin-top: 10px; overflow: hidden; }
+  .limit-bar { height: 8px; border-radius: 4px; transition: width .4s, background .4s; background: var(--c3); }
+  .limit-bar.warn  { background: var(--c2); }
+  .limit-bar.over  { background: var(--c1); }
+  .limit-msg { font-size: .8rem; margin-top: 6px; min-height: 18px; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--card); border: 1px solid var(--c4);
+    color: var(--text); padding: 10px 22px;
+    border-radius: 50px; font-size: .85rem; font-weight: 600;
+    z-index: 999; transition: transform .3s ease, opacity .3s;
+    opacity: 0; pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:700px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .toolbar { gap: 7px; }
+    .btn { padding: 6px 11px; font-size: .78rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="brand">WordCraft Counter</div>
+  <p class="tagline">Real-time word &amp; character analysis · Reading time · Keyword density &amp; more</p>
+</header>
+
+<div class="container">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <span class="toolbar-label">Text</span>
+    <button class="btn btn-coral"   onclick="clearText()">✕ Clear</button>
+    <button class="btn btn-yellow"  onclick="copyText()">⧉ Copy</button>
+    <button class="btn btn-blue"    onclick="pasteText()">⎘ Paste</button>
+    <div class="divider"></div>
+    <span class="toolbar-label">Transform</span>
+    <button class="btn btn-green"   onclick="transform('upper')">UPPER</button>
+    <button class="btn btn-green"   onclick="transform('lower')">lower</button>
+    <button class="btn btn-green"   onclick="transform('title')">Title</button>
+    <button class="btn btn-green"   onclick="transform('sentence')">Sentence</button>
+    <div class="divider"></div>
+    <button class="btn btn-purple"  onclick="removeExtraSpaces()">Trim Spaces</button>
+    <button class="btn btn-orange"  onclick="removeNumbers()">Remove Nums</button>
+    <button class="btn btn-ghost"   onclick="removePunct()">Remove Punct</button>
+  </div>
+
+  <!-- EDITOR -->
+  <div class="editor-card">
+    <div class="textarea-header">
+      <span>✏️ Start typing or paste your text below</span>
+      <div class="live-badge"><div class="live-dot"></div> Live</div>
+    </div>
+    <textarea id="mainText" placeholder="Paste or type your text here… Analysis happens in real time." spellcheck="true"></textarea>
+  </div>
+
+  <!-- CHAR LIMIT -->
+  <div class="panel">
+    <div class="panel-title"><span class="dot" style="background:var(--c5)"></span> Character Limit Tracker</div>
+    <div class="limit-row">
+      <label class="limit-toggle">
+        <input type="checkbox" id="limitToggle" onchange="updateLimit()"> Enable Limit
+      </label>
+      <input type="range" id="limitRange" min="50" max="5000" step="50" value="500" oninput="updateLimit()">
+      <span class="limit-val" id="limitVal">500</span>
+    </div>
+    <div class="limit-bar-wrap" style="margin-top:10px"><div class="limit-bar" id="limitBar" style="width:0%"></div></div>
+    <div class="limit-msg" id="limitMsg"></div>
+  </div>
+
+  <!-- STATS GRID -->
+  <div class="stats-grid">
+    <div class="stat-card sc-coral">
+      <div class="stat-label">Characters</div>
+      <div class="stat-value" id="s-chars">0</div>
+      <div class="stat-sub">with spaces</div>
+    </div>
+    <div class="stat-card sc-yellow">
+      <div class="stat-label">Chars (no spaces)</div>
+      <div class="stat-value" id="s-chars-ns">0</div>
+      <div class="stat-sub">excluding spaces</div>
+    </div>
+    <div class="stat-card sc-green">
+      <div class="stat-label">Words</div>
+      <div class="stat-value" id="s-words">0</div>
+      <div class="stat-sub">total words</div>
+    </div>
+    <div class="stat-card sc-blue">
+      <div class="stat-label">Sentences</div>
+      <div class="stat-value" id="s-sentences">0</div>
+      <div class="stat-sub">detected</div>
+    </div>
+    <div class="stat-card sc-purple">
+      <div class="stat-label">Paragraphs</div>
+      <div class="stat-value" id="s-paragraphs">0</div>
+      <div class="stat-sub">separated by newline</div>
+    </div>
+    <div class="stat-card sc-orange">
+      <div class="stat-label">Unique Words</div>
+      <div class="stat-value" id="s-unique">0</div>
+      <div class="stat-sub">distinct tokens</div>
+    </div>
+  </div>
+
+  <!-- SECONDARY ROW -->
+  <div class="secondary-row">
+
+    <!-- READING TIME -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--c4)"></span> Reading &amp; Speaking Time</div>
+      <div class="reading-ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 80 80">
+          <circle class="ring-bg" cx="40" cy="40" r="36"/>
+          <circle class="ring-fg" id="ringFg" cx="40" cy="40" r="36"/>
+          <text class="ring-label" x="40" y="37" id="ringMin">0</text>
+          <text class="ring-sub"   x="40" y="51">min read</text>
+        </svg>
+        <div class="reading-meta">
+          <p>🔍 Reading: <strong id="rt-reading">0 sec</strong></p>
+          <p>🎤 Speaking: <strong id="rt-speaking">0 sec</strong></p>
+          <p>⌨️ Typing (avg): <strong id="rt-typing">0 sec</strong></p>
+          <p>📚 Avg word length: <strong id="rt-awl">0</strong></p>
+          <p>📝 Flesch score: <strong id="rt-flesch">—</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- KEYWORD DENSITY -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--c1)"></span> Top Keywords</div>
+      <div class="kw-list" id="kwList">
+        <span class="kw-empty">Start typing to see keyword density…</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FULL ROW -->
+  <div class="full-row">
+
+    <!-- CHAR BREAKDOWN -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--c2)"></span> Character Breakdown</div>
+      <div class="breakdown-list" id="bkList">
+        <div class="bk-item"><div class="bk-label">Letters</div><div class="bk-bar-wrap"><div class="bk-bar" id="bk-letters" style="background:var(--c2);width:0%"></div></div><div class="bk-val" id="bv-letters">0</div></div>
+        <div class="bk-item"><div class="bk-label">Digits</div><div class="bk-bar-wrap"><div class="bk-bar" id="bk-digits" style="background:var(--c4);width:0%"></div></div><div class="bk-val" id="bv-digits">0</div></div>
+        <div class="bk-item"><div class="bk-label">Spaces</div><div class="bk-bar-wrap"><div class="bk-bar" id="bk-spaces" style="background:var(--c3);width:0%"></div></div><div class="bk-val" id="bv-spaces">0</div></div>
+        <div class="bk-item"><div class="bk-label">Punctuation</div><div class="bk-bar-wrap"><div class="bk-bar" id="bk-punct" style="background:var(--c5);width:0%"></div></div><div class="bk-val" id="bv-punct">0</div></div>
+        <div class="bk-item"><div class="bk-label">Special chars</div><div class="bk-bar-wrap"><div class="bk-bar" id="bk-special" style="background:var(--c1);width:0%"></div></div><div class="bk-val" id="bv-special">0</div></div>
+      </div>
+    </div>
+
+    <!-- FIND & COUNT -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--c3)"></span> Find &amp; Count</div>
+      <div class="find-row">
+        <input class="find-input" type="text" id="findInput" placeholder="Type a word or phrase…" oninput="doFind()">
+        <button class="btn btn-green" onclick="doFind()">Find</button>
+      </div>
+      <div class="find-result" id="findResult">Enter a word to count its occurrences.</div>
+
+      <div class="panel-title" style="margin-top:18px"><span class="dot" style="background:var(--c6)"></span> Sentence Preview</div>
+      <div class="sentence-list" id="sentList">
+        <span class="kw-empty">Sentences will appear here…</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EXPORT ROW -->
+  <div class="export-row">
+    <span class="toolbar-label">Export / Copy</span>
+    <button class="btn btn-coral"   onclick="exportStats('copy')">⧉ Copy Stats</button>
+    <button class="btn btn-blue"    onclick="exportStats('txt')">↓ Download .txt</button>
+    <button class="btn btn-purple"  onclick="exportStats('csv')">↓ Download .csv</button>
+    <button class="btn btn-yellow"  onclick="exportStats('json')">↓ Download .json</button>
+    <button class="btn btn-green"   onclick="exportText()">↓ Download Text</button>
+  </div>
+
+</div><!-- /container -->
+
+<div id="toast">✓ Done!</div>
+
+<script>
+/* ── GLOBALS ── */
+const ta = document.getElementById('mainText');
+const STOP = new Set(['the','a','an','and','or','but','in','on','at','to','for','of','with','is','are','was','were','be','been','have','has','had','do','does','did','will','would','could','should','may','might','this','that','these','those','it','its','i','you','he','she','we','they','me','him','her','us','them','my','your','his','our','their','not','no','so','if','as','by','from','up','out','about','into','than','then','when','where','who','what','which','how']);
+
+/* ── MAIN ANALYSIS ── */
+ta.addEventListener('input', analyse);
+window.addEventListener('load', analyse);
+
+function analyse() {
+  const raw = ta.value;
+  const noNewline = raw.replace(/\n/g, ' ');
+  const trimmed = raw.trim();
+
+  // chars
+  const chars = raw.length;
+  const charsNS = raw.replace(/\s/g,'').length;
+
+  // words
+  const words = trimmed === '' ? [] : trimmed.split(/\s+/).filter(w => w.length > 0);
+  const wordCount = words.length;
+
+  // sentences (naive but effective)
+  const sentences = trimmed === '' ? [] : trimmed.split(/(?<=[.!?])\s+/).filter(s => s.length > 0);
+  const sentCount = sentences.length === 1 && sentences[0] === '' ? 0 : sentences.length;
+
+  // paragraphs
+  const paras = trimmed === '' ? 0 : trimmed.split(/\n+/).filter(p => p.trim().length > 0).length;
+
+  // unique
+  const unique = new Set(words.map(w => w.toLowerCase().replace(/[^a-z0-9]/g,''))).size;
+
+  animateStat('s-chars',      chars);
+  animateStat('s-chars-ns',   charsNS);
+  animateStat('s-words',      wordCount);
+  animateStat('s-sentences',  sentCount);
+  animateStat('s-paragraphs', paras);
+  animateStat('s-unique',     unique);
+
+  updateReadingTime(wordCount, words);
+  updateKeywords(words);
+  updateBreakdown(raw, chars);
+  updateSentences(sentences);
+  updateLimit();
+  doFind();
+}
+
+/* ── ANIMATED STAT ── */
+const prevVals = {};
+function animateStat(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (prevVals[id] !== val) {
+    el.textContent = val;
+    el.classList.remove('popped');
+    void el.offsetWidth;
+    el.classList.add('popped');
+    prevVals[id] = val;
+  }
+}
+
+/* ── READING TIME ── */
+function fmt(sec) {
+  if (sec < 60) return `${Math.round(sec)} sec`;
+  const m = Math.floor(sec/60), s = Math.round(sec%60);
+  return s > 0 ? `${m} min ${s} sec` : `${m} min`;
+}
+function updateReadingTime(wordCount, words) {
+  const readSec   = wordCount / 238 * 60;
+  const speakSec  = wordCount / 150 * 60;
+  const typeSec   = wordCount / 40  * 60;
+  const readMin   = (readSec / 60);
+
+  document.getElementById('rt-reading').textContent  = fmt(readSec);
+  document.getElementById('rt-speaking').textContent = fmt(speakSec);
+  document.getElementById('rt-typing').textContent   = fmt(typeSec);
+
+  // avg word length
+  const avgLen = wordCount ? (words.reduce((a,w) => a + w.replace(/[^a-zA-Z]/g,'').length, 0) / wordCount).toFixed(1) : 0;
+  document.getElementById('rt-awl').textContent = avgLen + ' chars';
+
+  // flesch approximation (needs sentence count)
+  const sc = parseInt(document.getElementById('s-sentences').textContent) || 1;
+  const syllables = words.reduce((a,w) => a + countSyllables(w), 0);
+  const flesch = wordCount < 5 ? '—' : Math.max(0, Math.min(100, Math.round(
+    206.835 - 1.015*(wordCount/sc) - 84.6*(syllables/wordCount)
+  )));
+  const fleschLabel = typeof flesch === 'number'
+    ? (flesch >= 70 ? `${flesch} (Easy)` : flesch >= 50 ? `${flesch} (Medium)` : `${flesch} (Hard)`) : '—';
+  document.getElementById('rt-flesch').textContent = fleschLabel;
+
+  // ring
+  const clampMin = Math.min(readMin, 5);
+  const offset = 226 - (clampMin / 5) * 226;
+  document.getElementById('ringFg').style.strokeDashoffset = offset;
+  document.getElementById('ringMin').textContent = readMin < 1 ? '<1' : Math.round(readMin);
+}
+function countSyllables(word) {
+  word = word.toLowerCase().replace(/[^a-z]/g,'');
+  if (!word) return 0;
+  if (word.length <= 3) return 1;
+  word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
+  const m = word.match(/[aeiouy]{1,2}/g);
+  return m ? m.length : 1;
+}
+
+/* ── KEYWORDS ── */
+const KW_COLORS = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'];
+function updateKeywords(words) {
+  const freq = {};
+  words.forEach(w => {
+    const k = w.toLowerCase().replace(/[^a-z0-9]/g,'');
+    if (k.length > 2 && !STOP.has(k)) freq[k] = (freq[k]||0)+1;
+  });
+  const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const max = sorted[0]?.[1] || 1;
+  const list = document.getElementById('kwList');
+  if (!sorted.length) {
+    list.innerHTML = '<span class="kw-empty">Start typing to see keyword density…</span>';
+    return;
+  }
+  list.innerHTML = sorted.map(([w,c], i) => `
+    <div class="kw-item">
+      <span class="kw-word">${w}</span>
+      <div class="kw-bar-wrap"><div class="kw-bar" style="width:${(c/max*100).toFixed(1)}%;background:${KW_COLORS[i%6]}"></div></div>
+      <span class="kw-count">${c}</span>
+    </div>`).join('');
+}
+
+/* ── BREAKDOWN ── */
+function updateBreakdown(raw, total) {
+  const letters = (raw.match(/[a-zA-Z]/g)||[]).length;
+  const digits  = (raw.match(/\d/g)||[]).length;
+  const spaces  = (raw.match(/\s/g)||[]).length;
+  const punct   = (raw.match(/[.!?,:;'"()\-–—]/g)||[]).length;
+  const special = total - letters - digits - spaces - punct;
+  const max = total || 1;
+  const set = (id, bid, val) => {
+    document.getElementById(id).textContent = val;
+    document.getElementById(bid).style.width = (val/max*100).toFixed(1)+'%';
+  };
+  set('bv-letters','bk-letters',letters);
+  set('bv-digits',  'bk-digits',  digits);
+  set('bv-spaces',  'bk-spaces',  spaces);
+  set('bv-punct',   'bk-punct',   punct);
+  set('bv-special', 'bk-special', Math.max(0,special));
+}
+
+/* ── SENTENCES ── */
+function updateSentences(sentences) {
+  const el = document.getElementById('sentList');
+  const shown = sentences.slice(0,5);
+  if (!shown.length) {
+    el.innerHTML = '<span class="kw-empty">Sentences will appear here…</span>';
+    return;
+  }
+  el.innerHTML = shown.map(s => `<div class="sentence-item">${escHtml(s.trim())}</div>`).join('');
+}
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ── CHAR LIMIT ── */
+function updateLimit() {
+  const on     = document.getElementById('limitToggle').checked;
+  const limit  = +document.getElementById('limitRange').value;
+  const chars  = ta.value.length;
+  document.getElementById('limitVal').textContent = limit;
+  if (!on) {
+    document.getElementById('limitBar').style.width = '0%';
+    document.getElementById('limitMsg').textContent = '';
+    return;
+  }
+  const pct = Math.min(chars/limit*100, 100);
+  const bar = document.getElementById('limitBar');
+  bar.style.width = pct.toFixed(1)+'%';
+  bar.className   = 'limit-bar' + (pct>=100?' over':pct>=80?' warn':'');
+  const msg = document.getElementById('limitMsg');
+  if (chars > limit) {
+    msg.style.color = 'var(--c1)';
+    msg.textContent = `⚠ Over limit by ${chars-limit} character${chars-limit>1?'s':''}!`;
+  } else {
+    msg.style.color = 'var(--c3)';
+    msg.textContent = `${chars}/${limit} — ${limit-chars} remaining`;
+  }
+}
+
+/* ── FIND ── */
+function doFind() {
+  const q   = document.getElementById('findInput').value.trim();
+  const res = document.getElementById('findResult');
+  if (!q) { res.innerHTML = 'Enter a word to count its occurrences.'; return; }
+  const text = ta.value;
+  const regex = new RegExp(escRegex(q), 'gi');
+  const matches = [...text.matchAll(regex)];
+  res.innerHTML = matches.length
+    ? `Found <span>${matches.length}</span> occurrence${matches.length>1?'s':''} of "<strong>${escHtml(q)}</strong>"`
+    : `No occurrences of "<strong>${escHtml(q)}</strong>" found.`;
+}
+function escRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+/* ── TRANSFORMS ── */
+function transform(type) {
+  let v = ta.value;
+  if (type==='upper')    v = v.toUpperCase();
+  if (type==='lower')    v = v.toLowerCase();
+  if (type==='title')    v = v.replace(/\b\w/g, c=>c.toUpperCase());
+  if (type==='sentence') v = v.toLowerCase().replace(/(^\s*\w|[.!?]\s+\w)/g, c=>c.toUpperCase());
+  ta.value = v; analyse(); toast('Transformed!');
+}
+function removeExtraSpaces() {
+  ta.value = ta.value.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+  analyse(); toast('Spaces cleaned!');
+}
+function removeNumbers()   { ta.value = ta.value.replace(/\d/g,''); analyse(); toast('Numbers removed!'); }
+function removePunct()     { ta.value = ta.value.replace(/[.!?,:;'"()\-–—]/g,''); analyse(); toast('Punctuation removed!'); }
+
+/* ── COPY / PASTE / CLEAR ── */
+function clearText()  { ta.value=''; analyse(); toast('Cleared!'); }
+function copyText()   { navigator.clipboard.writeText(ta.value).then(()=>toast('Copied!')); }
+async function pasteText() {
+  try { ta.value = await navigator.clipboard.readText(); analyse(); toast('Pasted!'); }
+  catch{ toast('Paste failed — browser blocked'); }
+}
+
+/* ── EXPORT ── */
+function getStats() {
+  return {
+    characters:       document.getElementById('s-chars').textContent,
+    characters_no_spaces: document.getElementById('s-chars-ns').textContent,
+    words:            document.getElementById('s-words').textContent,
+    sentences:        document.getElementById('s-sentences').textContent,
+    paragraphs:       document.getElementById('s-paragraphs').textContent,
+    unique_words:     document.getElementById('s-unique').textContent,
+    reading_time:     document.getElementById('rt-reading').textContent,
+    speaking_time:    document.getElementById('rt-speaking').textContent,
+  };
+}
+function exportStats(type) {
+  const s = getStats();
+  if (type==='copy') {
+    const txt = Object.entries(s).map(([k,v])=>`${k}: ${v}`).join('\n');
+    navigator.clipboard.writeText(txt).then(()=>toast('Stats copied!'));
+    return;
+  }
+  let content, mime, ext;
+  if (type==='txt')  { content=Object.entries(s).map(([k,v])=>`${k}: ${v}`).join('\n'); mime='text/plain'; ext='txt'; }
+  if (type==='csv')  { content='Metric,Value\n'+Object.entries(s).map(([k,v])=>`"${k}","${v}"`).join('\n'); mime='text/csv'; ext='csv'; }
+  if (type==='json') { content=JSON.stringify(s,null,2); mime='application/json'; ext='json'; }
+  download(`wordcraft-stats.${ext}`, content, mime);
+}
+function exportText() {
+  download('my-text.txt', ta.value, 'text/plain');
+}
+function download(name, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content],{type:mime}));
+  a.download = name; a.click();
+  toast('Downloaded!');
+}
+
+/* ── TOAST ── */
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = '✓ '+msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+</script>
+</body>
+</html>
